@@ -498,13 +498,18 @@ function fetchVenues(lat, lon, catId) {
   function tryRadius(radius) {
     var query =
       '[out:json][timeout:15];' +
-      'node["' + key + '"="' + val + '"](around:' + radius + ',' + lat + ',' + lon + ');' +
-      'out 20;';
+      '(' +
+        'node["' + key + '"="' + val + '"](around:' + radius + ',' + lat + ',' + lon + ');' +
+        'way["' + key + '"="' + val + '"](around:' + radius + ',' + lat + ',' + lon + ');' +
+      ');' +
+      'out center 20;';
 
     return queryOverpass(query).then(function(data) {
+      console.log('[Meetpoint] Overpass raw (' + radius + 'm):', data.elements || []);
       var elements = (data.elements || []).filter(function(e) {
         return e.tags && e.tags.name;
       });
+      console.log('[Meetpoint] After name filter:', elements.length, 'venues');
 
       // If too few results and radius not yet maxed, widen and retry
       if (elements.length < 5 && radius < 2000) {
@@ -512,8 +517,12 @@ function fetchVenues(lat, lon, catId) {
       }
 
       elements.sort(function(a, b) {
-        var da = Math.pow(a.lat - lat, 2) + Math.pow(a.lon - lon, 2);
-        var db = Math.pow(b.lat - lat, 2) + Math.pow(b.lon - lon, 2);
+        var aLat = a.lat || (a.center && a.center.lat);
+        var aLon = a.lon || (a.center && a.center.lon);
+        var bLat = b.lat || (b.center && b.center.lat);
+        var bLon = b.lon || (b.center && b.center.lon);
+        var da = Math.pow(aLat - lat, 2) + Math.pow(aLon - lon, 2);
+        var db = Math.pow(bLat - lat, 2) + Math.pow(bLon - lon, 2);
         return da - db;
       });
 
