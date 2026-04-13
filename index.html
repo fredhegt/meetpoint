@@ -366,14 +366,14 @@ var AVATARS = [
 var LABELS = ['A','B','C','D','E','F'];
 
 var CATS = [
-  { id:'coffee',  label:'☕ Coffee',  osm:'amenity=cafe' },
-  { id:'drinks',  label:'🍸 Drinks',  osm:'amenity=bar' },
-  { id:'food',    label:'🍽 Food',    osm:'amenity=restaurant' },
-  { id:'museum',  label:'🏛 Museum',  osm:'tourism=museum' },
-  { id:'park',    label:'🌳 Park',    osm:'leisure=park' },
-  { id:'sport',   label:'🎾 Sport',   osm:'leisure=sports_centre' },
-  { id:'pub',     label:'🍺 Pub',     osm:'amenity=pub' },
-  { id:'cinema',  label:'🎬 Cinema',  osm:'amenity=cinema' }
+  { id:'coffee',  label:'☕ Coffee',  osm:['amenity=cafe', 'amenity=coffee_shop'] },
+  { id:'drinks',  label:'🍸 Drinks',  osm:['amenity=bar', 'amenity=pub', 'amenity=nightclub'] },
+  { id:'food',    label:'🍽 Food',    osm:['amenity=restaurant', 'amenity=bistro', 'amenity=food_court'] },
+  { id:'museum',  label:'🏛 Museum',  osm:['tourism=museum', 'tourism=gallery'] },
+  { id:'park',    label:'🌳 Park',    osm:['leisure=park', 'leisure=garden', 'landuse=recreation_ground'] },
+  { id:'sport',   label:'🎾 Sport',   osm:['leisure=sports_centre', 'leisure=fitness_centre', 'sport=tennis'] },
+  { id:'pub',     label:'🍺 Pub',     osm:['amenity=pub', 'amenity=bar'] },
+  { id:'cinema',  label:'🎬 Cinema',  osm:['amenity=cinema', 'amenity=theatre'] }
 ];
 
 var locations   = ['', '', ''];
@@ -491,18 +491,16 @@ function queryOverpass(query, endpointIndex) {
 }
 
 function fetchVenues(lat, lon, catId) {
-  var cat = CATS.find(function(c) { return c.id === catId; }) || CATS[0];
-  var kv  = cat.osm.split('=');
-  var key = kv[0], val = kv[1];
+  var cat  = CATS.find(function(c) { return c.id === catId; }) || CATS[0];
+  var tags = cat.osm; // array of "key=val" strings
 
   function tryRadius(radius) {
-    var query =
-      '[out:json][timeout:15];' +
-      '(' +
-        'node["' + key + '"="' + val + '"](around:' + radius + ',' + lat + ',' + lon + ');' +
-        'way["' + key + '"="' + val + '"](around:' + radius + ',' + lat + ',' + lon + ');' +
-      ');' +
-      'out center 20;';
+    var union = tags.map(function(tag) {
+      var kv = tag.split('='), k = kv[0], v = kv[1];
+      return 'node["' + k + '"="' + v + '"](around:' + radius + ',' + lat + ',' + lon + ');' +
+               'way["' + k + '"="' + v + '"](around:' + radius + ',' + lat + ',' + lon + ');';
+    }).join('');
+    var query = '[out:json][timeout:15];(' + union + ');out center 20;';
 
     return queryOverpass(query).then(function(data) {
       console.log('[Meetpoint] Overpass raw (' + radius + 'm):', data.elements || []);
