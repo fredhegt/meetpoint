@@ -463,6 +463,33 @@ function geocode(query) {
 
 // ── FETCH VENUES via Overpass ────────────────────────────────────────────────
 
+var OVERPASS_ENDPOINTS = [
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter',
+  'https://lz4.overpass-api.de/api/interpreter'
+];
+
+function queryOverpass(query, endpointIndex) {
+  if (endpointIndex === undefined) endpointIndex = 0;
+  if (endpointIndex >= OVERPASS_ENDPOINTS.length) {
+    return Promise.reject(new Error('All venue search servers are busy. Please wait a moment and try again.'));
+  }
+  return fetch(OVERPASS_ENDPOINTS[endpointIndex], {
+    method: 'POST',
+    body: 'data=' + encodeURIComponent(query)
+  })
+  .then(function(r) {
+    if (!r.ok) return queryOverpass(query, endpointIndex + 1);
+    var ct = r.headers.get('content-type') || '';
+    if (!ct.includes('json')) return queryOverpass(query, endpointIndex + 1);
+    return r.json();
+  })
+  .catch(function(e) {
+    if (endpointIndex + 1 < OVERPASS_ENDPOINTS.length) return queryOverpass(query, endpointIndex + 1);
+    throw e;
+  });
+}
+
 function fetchVenues(lat, lon, catId) {
   var cat    = CATS.find(function(c) { return c.id === catId; }) || CATS[0];
   var kv     = cat.osm.split('=');
@@ -470,27 +497,14 @@ function fetchVenues(lat, lon, catId) {
   var radius = 1200; // metres
 
   var query =
-    '[out:json][timeout:15];' +
+    '[out:json][timeout:25];' +
     '(' +
       'node["' + key + '"="' + val + '"](around:' + radius + ',' + lat + ',' + lon + ');' +
       'way["' + key + '"="' + val + '"](around:' + radius + ',' + lat + ',' + lon + ');' +
     ');' +
-    'out center 10;';
+    'out center 50;';
 
-  return fetch('https://overpass-api.de/api/interpreter', {
-    method: 'POST',
-    body: 'data=' + encodeURIComponent(query)
-  })
-  .then(function(r) {
-    if (!r.ok) throw new Error('Venue search failed (server error ' + r.status + '). Try again in a moment.');
-    var ct = r.headers.get('content-type') || '';
-    if (!ct.includes('json')) {
-      return r.text().then(function() {
-        throw new Error('Venue search failed — the Overpass server may be rate-limiting. Wait a few seconds and try again.');
-      });
-    }
-    return r.json();
-  })
+  return queryOverpass(query)
   .then(function(data) {
     var elements = (data.elements || []).filter(function(e) {
       return e.tags && e.tags.name;
@@ -608,7 +622,7 @@ document.getElementById('find-btn').addEventListener('click', async function() {
     // 5. Drop midpoint star
     var midMarker = L.marker([mid.lat, mid.lon], { icon: starIcon() })
       .addTo(leafMap)
-      .bindPopup('<strong>Midpoint</strong><br>Equal distance for everyone')
+      .bindPopup('<strong>Midpoint</strong><br>Fairest meetpoint')
       .openPopup();
     mapMarkers.push(midMarker);
 
