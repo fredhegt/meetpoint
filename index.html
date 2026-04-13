@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Meetpoint — Find your perfect meetup spot</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --green: #1a6b4a;
+    --green-light: #e8f5ee;
+    --green-mid: #2d9465;
+    --ink: #1a1a1a;
+    --ink-mid: #555;
+    --ink-light: #888;
+    --bg: #faf9f6;
+    --surface: #ffffff;
+    --border: rgba(0,0,0,0.10);
+    --border-strong: rgba(0,0,0,0.18);
+    --radius: 12px;
+    --radius-sm: 8px;
+    --shadow: 0 2px 16px rgba(0,0,0,0.07);
+    --shadow-lg: 0 8px 40px rgba(0,0,0,0.12);
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    min-height: 100vh;
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  /* ── HEADER ── */
+  header {
+    padding: 1.5rem 2rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .logo-mark {
+    width: 32px; height: 32px;
+    background: var(--green);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-size: 15px;
+  }
+
+  .logo-text {
+    font-family: 'DM Serif Display', serif;
+    font-size: 20px;
+    color: var(--ink);
+    letter-spacing: -0.3px;
+  }
+
+  .logo-text span { color: var(--green-mid); font-style: italic; }
+
+  /* ── HERO ── */
+  .hero {
+    text-align: center;
+    padding: 3.5rem 2rem 2.5rem;
+    max-width: 560px;
+    margin: 0 auto;
+  }
+
+  .hero h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(2rem, 5vw, 3rem);
+    line-height: 1.15;
+    color: var(--ink);
+    margin-bottom: 0.75rem;
+    letter-spacing: -0.5px;
+  }
+
+  .hero h1 em { color: var(--green-mid); font-style: italic; }
+
+  .hero p {
+    color: var(--ink-mid);
+    font-size: 16px;
+    font-weight: 300;
+    max-width: 400px;
+    margin: 0 auto;
+  }
+
+  /* ── MAIN LAYOUT ── */
+  main {
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 0 1.25rem 4rem;
+  }
+
+  /* ── CARD ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    box-shadow: var(--shadow);
+  }
+
+  .card-title {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-light);
+    margin-bottom: 1rem;
+  }
+
+  /* ── LOCATIONS ── */
+  .loc-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 10px;
+    animation: fadeIn 0.2s ease;
+  }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+
+  .avatar {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 500;
+    flex-shrink: 0;
+  }
+
+  .loc-row input {
+    flex: 1;
+    padding: 10px 14px;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    color: var(--ink);
+    background: var(--bg);
+    transition: border-color 0.15s, box-shadow 0.15s;
+    outline: none;
+  }
+
+  .loc-row input:focus {
+    border-color: var(--green-mid);
+    box-shadow: 0 0 0 3px rgba(45,148,101,0.12);
+  }
+
+  .loc-row input::placeholder { color: var(--ink-light); }
+
+  .remove-btn {
+    background: none; border: none; cursor: pointer;
+    color: var(--ink-light); font-size: 16px; padding: 4px 6px;
+    border-radius: 4px; line-height: 1; transition: color 0.15s;
+  }
+  .remove-btn:hover { color: var(--ink); }
+
+  .add-btn {
+    width: 100%; margin-top: 6px;
+    padding: 9px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px; cursor: pointer;
+    background: none;
+    border: 1px dashed var(--border-strong);
+    border-radius: var(--radius-sm);
+    color: var(--ink-mid);
+    transition: background 0.15s, color 0.15s;
+  }
+  .add-btn:hover { background: var(--bg); color: var(--ink); }
+
+  /* ── CATEGORIES ── */
+  .cat-grid {
+    display: flex; flex-wrap: wrap; gap: 8px;
+  }
+
+  .cat-btn {
+    border-radius: 999px;
+    padding: 7px 16px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px; cursor: pointer;
+    transition: all 0.15s;
+    font-weight: 400;
+  }
+
+  /* ── FIND BUTTON ── */
+  .find-btn {
+    width: 100%; padding: 14px;
+    background: var(--green);
+    color: white;
+    border: none; border-radius: var(--radius-sm);
+    font-family: 'DM Serif Display', serif;
+    font-size: 17px;
+    cursor: pointer;
+    letter-spacing: 0.2px;
+    transition: background 0.2s, transform 0.1s;
+    margin-top: 0.25rem;
+  }
+  .find-btn:hover { background: var(--green-mid); }
+  .find-btn:active { transform: scale(0.99); }
+  .find-btn:disabled { background: #aaa; cursor: not-allowed; transform: none; }
+
+  /* ── ERROR ── */
+  .error-box {
+    background: #fff5f5;
+    border: 1px solid #fcc;
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    font-size: 13px;
+    color: #993333;
+    margin-bottom: 1rem;
+    display: none;
+  }
+
+  /* ── RESULTS ── */
+  #results { display: none; margin-top: 1.5rem; }
+
+  .midpoint-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--green-light);
+    color: var(--green);
+    font-size: 13px; font-weight: 500;
+    padding: 5px 14px;
+    border-radius: 999px;
+    margin-bottom: 1rem;
+  }
+
+  #map {
+    height: 340px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    margin-bottom: 1.25rem;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+
+  /* ── VENUE CARDS ── */
+  .venue-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    display: flex; gap: 12px; align-items: flex-start;
+    box-shadow: var(--shadow);
+    cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .venue-card:hover { border-color: var(--green-mid); box-shadow: 0 2px 20px rgba(26,107,74,0.1); }
+
+  .venue-num {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: var(--green);
+    color: white;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 500;
+    flex-shrink: 0; margin-top: 1px;
+  }
+
+  .venue-name { font-size: 14px; font-weight: 500; color: var(--ink); }
+  .venue-meta { font-size: 12px; color: var(--ink-mid); margin-top: 2px; }
+
+  .status-msg {
+    text-align: center; padding: 1.5rem;
+    font-size: 13px; color: var(--ink-light);
+  }
+
+  /* ── LOADING SPINNER ── */
+  .spinner {
+    display: inline-block; width: 14px; height: 14px;
+    border: 2px solid rgba(255,255,255,0.4);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    margin-right: 8px; vertical-align: middle;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── FOOTER ── */
+  footer {
+    text-align: center;
+    padding: 2rem;
+    font-size: 12px;
+    color: var(--ink-light);
+    border-top: 1px solid var(--border);
+    margin-top: 2rem;
+  }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 480px) {
+    header { padding: 1rem 1.25rem; }
+    .hero { padding: 2rem 1.25rem 1.5rem; }
+    main { padding: 0 1rem 3rem; }
+    .card { padding: 1.25rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-mark">★</div>
+  <div class="logo-text">meet<span>point</span></div>
+</header>
+
+<div class="hero">
+  <h1>Find the <em>fairest</em> spot to meet</h1>
+  <p>Enter everyone's locations and we'll find the best meetup point in the middle.</p>
+</div>
+
+<main>
+
+  <div class="card">
+    <div class="card-title">Where is everyone?</div>
+    <div id="loc-inputs"></div>
+    <button class="add-btn" id="add-btn">+ Add another person</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title">What are you looking for?</div>
+    <div class="cat-grid" id="cat-grid"></div>
+  </div>
+
+  <div class="error-box" id="err"></div>
+  <button class="find-btn" id="find-btn">Find our meetpoint</button>
+
+  <div id="results">
+    <div style="margin-top:1.5rem; margin-bottom:0.75rem;">
+      <span class="midpoint-pill" id="midpoint-pill">★ Midpoint found</span>
+    </div>
+    <div id="map"></div>
+    <div class="card-title">Closest venues to your midpoint</div>
+    <div id="venue-list"></div>
+  </div>
+
+</main>
+
+<footer>
+  Built with OpenStreetMap &amp; Leaflet · Location data © OpenStreetMap contributors
+</footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ── CONFIG ──────────────────────────────────────────────────────────────────
+
+var AVATARS = [
+  { bg:'#e8f5ee', col:'#1a6b4a' },
+  { bg:'#e8eef8', col:'#1a3e8a' },
+  { bg:'#fdf0e0', col:'#8a4e10' },
+  { bg:'#fce8f0', col:'#8a1a4a' },
+  { bg:'#eeebfc', col:'#4a3aaa' },
+  { bg:'#eaf5e0', col:'#2a6010' }
+];
+var LABELS = ['A','B','C','D','E','F'];
+
+var CATS = [
+  { id:'coffee',  label:'☕ Coffee',  osm:'amenity=cafe' },
+  { id:'drinks',  label:'🍸 Drinks',  osm:'amenity=bar' },
+  { id:'food',    label:'🍽 Food',    osm:'amenity=restaurant' },
+  { id:'museum',  label:'🏛 Museum',  osm:'tourism=museum' },
+  { id:'park',    label:'🌳 Park',    osm:'leisure=park' },
+  { id:'sport',   label:'🎾 Sport',   osm:'leisure=sports_centre' },
+  { id:'pub',     label:'🍺 Pub',     osm:'amenity=pub' },
+  { id:'cinema',  label:'🎬 Cinema',  osm:'amenity=cinema' }
+];
+
+var locations   = ['', '', ''];
+var activeCat   = 'coffee';
+var leafMap     = null;
+var mapMarkers  = [];
+
+// ── RENDER LOCATIONS ────────────────────────────────────────────────────────
+
+function renderLocs() {
+  var c = document.getElementById('loc-inputs');
+  c.innerHTML = '';
+  locations.forEach(function(v, i) {
+    var av  = AVATARS[i % AVATARS.length];
+    var row = document.createElement('div');
+    row.className = 'loc-row';
+
+    var avatar = document.createElement('div');
+    avatar.className = 'avatar';
+    avatar.style.cssText = 'background:' + av.bg + ';color:' + av.col;
+    avatar.textContent = LABELS[i];
+
+    var inp = document.createElement('input');
+    inp.type = 'text';
+    inp.placeholder = 'Street, area or postcode — e.g. E1 6RF or Shoreditch';
+    inp.value = v;
+    inp.addEventListener('input', function() { locations[i] = this.value; });
+
+    row.appendChild(avatar);
+    row.appendChild(inp);
+
+    if (locations.length > 2) {
+      var rb = document.createElement('button');
+      rb.className = 'remove-btn';
+      rb.innerHTML = '&times;';
+      rb.title = 'Remove';
+      rb.addEventListener('click', function() { locations.splice(i, 1); renderLocs(); });
+      row.appendChild(rb);
+    }
+
+    c.appendChild(row);
+  });
+}
+
+// ── RENDER CATEGORIES ────────────────────────────────────────────────────────
+
+function renderCats() {
+  var c = document.getElementById('cat-grid');
+  c.innerHTML = '';
+  CATS.forEach(function(cat) {
+    var active = cat.id === activeCat;
+    var btn = document.createElement('button');
+    btn.className = 'cat-btn';
+    btn.style.cssText = active
+      ? 'background:#e8f5ee;border:1.5px solid #1a6b4a;color:#1a6b4a;font-weight:500;'
+      : 'background:#fff;border:1px solid rgba(0,0,0,0.15);color:#555;';
+    btn.textContent = cat.label;
+    btn.addEventListener('click', function() { activeCat = cat.id; renderCats(); });
+    c.appendChild(btn);
+  });
+}
+
+// ── GEOCODE via Nominatim ────────────────────────────────────────────────────
+
+function geocode(query) {
+  // Add "London" if not already present and doesn't look like a postcode
+  var q = query.trim();
+  if (!/\bLondon\b/i.test(q) && !/^[A-Z]{1,2}\d/.test(q.toUpperCase())) {
+    q = q + ', London, UK';
+  } else if (/^[A-Z]{1,2}\d/.test(q.toUpperCase())) {
+    q = q + ', UK';
+  }
+
+  var url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=gb&q=' + encodeURIComponent(q);
+
+  return fetch(url, { headers: { 'Accept-Language': 'en-GB', 'User-Agent': 'Meetpoint-App/1.0' } })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (!data || !data.length) throw new Error('Could not find "' + query + '" — try a postcode or fuller address');
+      return {
+        lat: parseFloat(data[0].lat),
+        lon: parseFloat(data[0].lon),
+        name: data[0].display_name.split(',').slice(0, 2).join(',')
+      };
+    });
+}
+
+// ── FETCH VENUES via Overpass ────────────────────────────────────────────────
+
+function fetchVenues(lat, lon, catId) {
+  var cat    = CATS.find(function(c) { return c.id === catId; }) || CATS[0];
+  var kv     = cat.osm.split('=');
+  var key    = kv[0], val = kv[1];
+  var radius = 1200; // metres
+
+  var query =
+    '[out:json][timeout:15];' +
+    '(' +
+      'node["' + key + '"="' + val + '"](around:' + radius + ',' + lat + ',' + lon + ');' +
+      'way["' + key + '"="' + val + '"](around:' + radius + ',' + lat + ',' + lon + ');' +
+    ');' +
+    'out center 10;';
+
+  return fetch('https://overpass-api.de/api/interpreter', {
+    method: 'POST',
+    body: 'data=' + encodeURIComponent(query)
+  })
+  .then(function(r) {
+    if (!r.ok) throw new Error('Venue search failed (server error ' + r.status + '). Try again in a moment.');
+    var ct = r.headers.get('content-type') || '';
+    if (!ct.includes('json')) {
+      return r.text().then(function() {
+        throw new Error('Venue search failed — the Overpass server may be rate-limiting. Wait a few seconds and try again.');
+      });
+    }
+    return r.json();
+  })
+  .then(function(data) {
+    var elements = (data.elements || []).filter(function(e) {
+      return e.tags && e.tags.name;
+    });
+
+    // Sort by distance to midpoint
+    elements.sort(function(a, b) {
+      var aLat = a.lat || (a.center && a.center.lat) || lat;
+      var aLon = a.lon || (a.center && a.center.lon) || lon;
+      var bLat = b.lat || (b.center && b.center.lat) || lat;
+      var bLon = b.lon || (b.center && b.center.lon) || lon;
+      var da = Math.pow(aLat - lat, 2) + Math.pow(aLon - lon, 2);
+      var db = Math.pow(bLat - lat, 2) + Math.pow(bLon - lon, 2);
+      return da - db;
+    });
+
+    return elements.slice(0, 6);
+  });
+}
+
+// ── CALCULATE GEOGRAPHIC MIDPOINT ────────────────────────────────────────────
+
+function midpoint(coords) {
+  var lat = coords.reduce(function(s, c) { return s + c.lat; }, 0) / coords.length;
+  var lon = coords.reduce(function(s, c) { return s + c.lon; }, 0) / coords.length;
+  return { lat: lat, lon: lon };
+}
+
+// ── MAP HELPERS ───────────────────────────────────────────────────────────────
+
+function makeIcon(html, size) {
+  return L.divIcon({ html: html, className: '', iconSize: [size, size], iconAnchor: [size/2, size/2] });
+}
+
+function personIcon(i) {
+  var av = AVATARS[i % AVATARS.length];
+  return makeIcon(
+    '<div style="width:30px;height:30px;border-radius:50%;background:' + av.col + ';color:white;' +
+    'display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;' +
+    'border:2.5px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.25)">' + LABELS[i] + '</div>', 30
+  );
+}
+
+function starIcon() {
+  return makeIcon(
+    '<div style="width:36px;height:36px;border-radius:50%;background:#1a6b4a;color:white;' +
+    'display:flex;align-items:center;justify-content:center;font-size:17px;' +
+    'border:3px solid white;box-shadow:0 3px 10px rgba(26,107,74,0.35)">★</div>', 36
+  );
+}
+
+function venueIcon(n) {
+  return makeIcon(
+    '<div style="width:24px;height:24px;border-radius:50%;background:#2d9465;color:white;' +
+    'display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;' +
+    'border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.2)">' + n + '</div>', 24
+  );
+}
+
+// ── CLEAR MAP ─────────────────────────────────────────────────────────────────
+
+function clearMarkers() {
+  mapMarkers.forEach(function(m) { m.remove(); });
+  mapMarkers = [];
+}
+
+// ── MAIN FIND FUNCTION ────────────────────────────────────────────────────────
+
+document.getElementById('find-btn').addEventListener('click', async function() {
+  var err   = document.getElementById('err');
+  var btn   = document.getElementById('find-btn');
+  err.style.display = 'none';
+
+  var filled = locations.filter(function(l) { return l.trim(); });
+  if (filled.length < 2) {
+    err.textContent = 'Please enter at least 2 locations.';
+    err.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Finding your meetpoint…';
+
+  try {
+    // 1. Geocode all locations
+    var coords = await Promise.all(filled.map(geocode));
+
+    // 2. Calculate midpoint
+    var mid = midpoint(coords);
+
+    // 3. Show map
+    document.getElementById('results').style.display = 'block';
+    document.getElementById('midpoint-pill').textContent =
+      '★ Midpoint near ' + nearestArea(mid.lat, mid.lon);
+
+    if (!leafMap) {
+      leafMap = L.map('map').setView([mid.lat, mid.lon], 14);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        maxZoom: 19
+      }).addTo(leafMap);
+    } else {
+      clearMarkers();
+      leafMap.setView([mid.lat, mid.lon], 14);
+    }
+
+    // 4. Drop person markers
+    coords.forEach(function(c, i) {
+      var m = L.marker([c.lat, c.lon], { icon: personIcon(i) })
+        .addTo(leafMap)
+        .bindPopup('<strong>' + LABELS[i] + '</strong>: ' + c.name);
+      mapMarkers.push(m);
+    });
+
+    // 5. Drop midpoint star
+    var midMarker = L.marker([mid.lat, mid.lon], { icon: starIcon() })
+      .addTo(leafMap)
+      .bindPopup('<strong>Midpoint</strong><br>Equal distance for everyone')
+      .openPopup();
+    mapMarkers.push(midMarker);
+
+    // 6. Fetch venues
+    document.getElementById('venue-list').innerHTML =
+      '<div class="status-msg">Searching for ' + activeCat + ' spots nearby…</div>';
+
+    btn.innerHTML = '<span class="spinner"></span>Finding venues…';
+
+    var venues = await fetchVenues(mid.lat, mid.lon, activeCat);
+    var vl = document.getElementById('venue-list');
+    vl.innerHTML = '';
+
+    if (!venues.length) {
+      vl.innerHTML = '<div class="status-msg">No venues found within 1.2km — try a different category.</div>';
+    } else {
+      venues.forEach(function(v, i) {
+        var vLat = v.lat || (v.center && v.center.lat);
+        var vLon = v.lon || (v.center && v.center.lon);
+
+        if (vLat && vLon) {
+          var vm = L.marker([vLat, vLon], { icon: venueIcon(i + 1) })
+            .addTo(leafMap)
+            .bindPopup('<strong>' + v.tags.name + '</strong>');
+          mapMarkers.push(vm);
+        }
+
+        var street = '';
+        if (v.tags['addr:street']) {
+          street = (v.tags['addr:housenumber'] ? v.tags['addr:housenumber'] + ' ' : '') + v.tags['addr:street'];
+        }
+
+        var card = document.createElement('div');
+        card.className = 'venue-card';
+        card.innerHTML =
+          '<div class="venue-num">' + (i + 1) + '</div>' +
+          '<div>' +
+            '<div class="venue-name">' + v.tags.name + '</div>' +
+            '<div class="venue-meta">' + (street || 'Near your midpoint') +
+              (v.tags.opening_hours ? ' · ' + v.tags.opening_hours : '') +
+            '</div>' +
+          '</div>';
+
+        if (vLat && vLon) {
+          card.addEventListener('click', function() {
+            leafMap.setView([vLat, vLon], 16);
+          });
+        }
+
+        vl.appendChild(card);
+      });
+    }
+
+    // 7. Fit map to all markers
+    if (coords.length > 1) {
+      var bounds = L.latLngBounds(coords.map(function(c) { return [c.lat, c.lon]; }));
+      bounds.extend([mid.lat, mid.lon]);
+      leafMap.fitBounds(bounds, { padding: [40, 40] });
+    }
+
+    document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  } catch(e) {
+    err.textContent = e.message || 'Something went wrong. Please check your locations and try again.';
+    err.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'Find our meetpoint';
+  }
+});
+
+// ── ROUGH REVERSE GEOCODE (area name for pill label) ─────────────────────────
+
+function nearestArea(lat, lon) {
+  var areas = [
+    {n:'Shoreditch',lat:51.5246,lon:-0.0797},{n:'Hackney',lat:51.5450,lon:-0.0553},
+    {n:'Islington',lat:51.5362,lon:-0.1033},{n:'Clapham',lat:51.4613,lon:-0.1481},
+    {n:'Brixton',lat:51.4613,lon:-0.1156},{n:'Canary Wharf',lat:51.5054,lon:-0.0235},
+    {n:'Stratford',lat:51.5416,lon:-0.0042},{n:'Camdentown',lat:51.5390,lon:-0.1426},
+    {n:'Hampstead',lat:51.5568,lon:-0.1782},{n:'Kensington',lat:51.4993,lon:-0.1933},
+    {n:'Chelsea',lat:51.4882,lon:-0.1749},{n:'Fulham',lat:51.4807,lon:-0.1979},
+    {n:'Hammersmith',lat:51.4928,lon:-0.2229},{n:'Paddington',lat:51.5154,lon:-0.1755},
+    {n:'Mayfair',lat:51.5117,lon:-0.1468},{n:'Soho',lat:51.5137,lon:-0.1337},
+    {n:'Covent Garden',lat:51.5129,lon:-0.1239},{n:'Holborn',lat:51.5174,lon:-0.1200},
+    {n:'Clerkenwell',lat:51.5228,lon:-0.1043},{n:'Barbican',lat:51.5208,lon:-0.0966},
+    {n:'Liverpool Street',lat:51.5178,lon:-0.0823},{n:'London Bridge',lat:51.5055,lon:-0.0910},
+    {n:'Waterloo',lat:51.5036,lon:-0.1143},{n:'Southwark',lat:51.5041,lon:-0.0988},
+    {n:'Vauxhall',lat:51.4860,lon:-0.1223},{n:'Elephant & Castle',lat:51.4943,lon:-0.0994},
+    {n:'Bermondsey',lat:51.4987,lon:-0.0633},{n:'Peckham',lat:51.4734,lon:-0.0695},
+    {n:'Greenwich',lat:51.4769,lon:-0.0005},{n:'Wandsworth',lat:51.4554,lon:-0.1922},
+    {n:'Wimbledon',lat:51.4214,lon:-0.2068},{n:'Tooting',lat:51.4278,lon:-0.1677},
+    {n:'Notting Hill',lat:51.5093,lon:-0.2023},{n:'Westbourne',lat:51.5175,lon:-0.2108},
+    {n:'Bethnal Green',lat:51.5274,lon:-0.0587},{n:'Whitechapel',lat:51.5196,lon:-0.0593},
+    {n:'Dalston',lat:51.5460,lon:-0.0754},{n:'Stoke Newington',lat:51.5626,lon:-0.0748},
+    {n:'Finsbury Park',lat:51.5643,lon:-0.1059},{n:'Archway',lat:51.5657,lon:-0.1349},
+    {n:'King\'s Cross',lat:51.5308,lon:-0.1238},{n:'Euston',lat:51.5282,lon:-0.1337},
+    {n:'Westminster',lat:51.4994,lon:-0.1272},{n:'Victoria',lat:51.4965,lon:-0.1439},
+    {n:'Pimlico',lat:51.4893,lon:-0.1333},{n:'the City',lat:51.5155,lon:-0.0903}
+  ];
+  var best = areas[0], bestD = Infinity;
+  areas.forEach(function(a) {
+    var d = Math.pow(a.lat - lat, 2) + Math.pow(a.lon - lon, 2);
+    if (d < bestD) { bestD = d; best = a; }
+  });
+  return best.n;
+}
+
+// ── ADD PERSON ────────────────────────────────────────────────────────────────
+
+document.getElementById('add-btn').addEventListener('click', function() {
+  if (locations.length < 6) { locations.push(''); renderLocs(); }
+});
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+
+renderLocs();
+renderCats();
+</script>
+</body>
+</html>
